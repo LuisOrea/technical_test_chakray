@@ -1,79 +1,130 @@
-# technical-test
+# Technical Test - User Management API
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+API REST construida con Quarkus para la gestión de usuarios, cumpliendo con los requisitos de persistencia, validación y empaquetado.
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
+## Requisitos previos
 
-## Running the application in dev mode
+1. Docker instalado.
+2. Maven (opcional, solo si deseas compilar desde cero).
 
-You can run your application in dev mode that enables live coding using:
+## Cómo ejecutar el proyecto
 
-```shell script
+### Opción 1: Usando la imagen Docker (Recomendado)
+
+1. Construir la imagen:
+```bash
+docker build -f src/main/docker/Dockerfile.jvm -t acme/technical-test .
+```
+
+2. Correr el contenedor:
+```bash
+docker run -i --rm -p 8080:8080 acme/technical-test
+```
+
+La API estará disponible en `http://localhost:8080`
+
+### Opción 2: Desarrollo local
+
+1. Compilar y empaquetar:
+```bash
+./mvnw clean package
+```
+
+2. Ejecutar en modo desarrollo:
+```bash
 ./mvnw quarkus:dev
 ```
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+## Persistencia
 
-## Packaging and running the application
+Este proyecto utiliza una base de datos H2 en memoria para facilitar las pruebas.
 
-The application can be packaged using:
+- **Modo:** `drop-and-create` (la base de datos se limpia cada vez que el contenedor inicia).
+- **Consola H2:** `http://localhost:8080/h2-console`
+  - URL: `jdbc:h2:mem:testdb`
+  - Usuario: `sa`
+  - Contraseña: _(vacía)_
 
-```shell script
-./mvnw package
+## Pruebas
+
+El proyecto incluye pruebas unitarias con JUnit y Mockito. Para ejecutarlas:
+```bash
+./mvnw test
 ```
 
-It produces the `quarkus-run.jar` file in the `target/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/quarkus-app/lib/` directory.
+## Documentación de la API
 
-The application is now runnable using `java -jar target/quarkus-app/quarkus-run.jar`.
+Swagger UI disponible en: `http://localhost:8080/q/swagger-ui/`
 
-If you want to build an _über-jar_, execute the following command:
+## Endpoints
 
-```shell script
-./mvnw package -Dquarkus.package.jar.type=uber-jar
+### POST `/login`
+Autentica un usuario usando `tax_id` como username.
+
+```bash
+curl -X POST http://localhost:8080/login \
+  -H "Content-Type: application/json" \
+  -d '{"tax_id": "CATC900101ABC", "password": "shjdu2378sanj"}'
 ```
 
-The application, packaged as an _über-jar_, is now runnable using `java -jar target/*-runner.jar`.
+---
 
-## Creating a native executable
+### GET `/users`
+Lista todos los usuarios. Soporta ordenamiento y filtrado.
 
-You can create a native executable using:
-
-```shell script
-./mvnw package -Dnative
+**Ordenar por atributo** — valores válidos: `email | id | name | phone | tax_id | created_at`
+```bash
+curl "http://localhost:8080/users?sortedBy=name"
 ```
 
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
+**Filtrar** — operadores: `co` (contains) · `eq` (equals) · `sw` (starts with) · `ew` (ends with)
+```bash
+# Nombre que contiene "user"
+curl "http://localhost:8080/users?filter=name+co+user"
 
-```shell script
-./mvnw package -Dnative -Dquarkus.native.container-build=true
+# Email que termina en "mail.com"
+curl "http://localhost:8080/users?filter=email+ew+mail.com"
+
+# Teléfono que empieza con "555"
+curl "http://localhost:8080/users?filter=phone+sw+555"
+
+# tax_id exacto
+curl "http://localhost:8080/users?filter=tax_id+eq+AARR990101XXX"
 ```
 
-You can then execute your native executable with: `./target/technical-test-1.0.0-SNAPSHOT-runner`
+---
 
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/maven-tooling>.
+### POST `/users`
+Crea un nuevo usuario.
 
-## Related Guides
+```bash
+curl -X POST http://localhost:8080/users \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Juan Pérez",
+    "email": "juan@mail.com",
+    "password": "1234",
+    "phone": "5551234567",
+    "taxId": "AARR990101XXX"
+  }'
+```
 
-- SmallRye OpenAPI ([guide](https://quarkus.io/guides/openapi-swaggerui)): Generate OpenAPI schemas and serve Swagger UI for REST API documentation
-- REST Jackson ([guide](https://quarkus.io/guides/rest#json-serialisation)): Jackson serialization support for Quarkus REST. This extension is not compatible with the quarkus-resteasy extension, or any of the extensions that depend on it
-- Hibernate ORM with Panache ([guide](https://quarkus.io/guides/hibernate-orm-panache)): Simplified JPA/Hibernate data access layer with active record and repository patterns
-- JDBC Driver - PostgreSQL ([guide](https://quarkus.io/guides/datasource)): Connect to the PostgreSQL database via JDBC
+---
 
-## Provided Code
+### PATCH `/users/{id}`
+Actualiza uno o más atributos de un usuario por Id.
 
-### Hibernate ORM
+```bash
+curl -X PATCH http://localhost:8080/users/1 \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Juan Actualizado"}'
+```
 
-Create your first JPA entity
+---
 
-[Related guide section...](https://quarkus.io/guides/hibernate-orm)
+### DELETE `/users/{id}`
+Elimina un usuario por Id.
 
-
-[Related Hibernate with Panache section...](https://quarkus.io/guides/hibernate-orm-panache)
-
-
-### REST
-
-Easily start your REST Web Services
-
-[Related guide section...](https://quarkus.io/guides/getting-started-reactive#reactive-jax-rs-resources)
+```bash
+curl -X DELETE http://localhost:8080/users/1
+```
